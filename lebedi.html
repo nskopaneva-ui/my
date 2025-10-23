@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>маленькая пауза — танец</title>
+<style>
+  /* --- базовые стили (никаких внешних шрифтов/сервисов) --- */
+  :root{
+    --bg:#ffffff;
+    --ink:#0b0b0b;
+    --accent:#222;
+    --dance-duration:7000ms; /* длительность главной анимации балерин */
+    --fade-duration:900ms;   /* fade out */
+    --typing-delay:1200;     /* пауза перед началом печати (ms) */
+    --word-interval:220;     /* задержка между словами (ms) */
+  }
+
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+  body{display:flex;align-items:center;justify-content:center;padding:28px;box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
+  .stage{width:100%;max-width:920px;min-height:600px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;position:relative}
+
+  /* карточка/контейнер для безопасного белого поля для печати */
+  .card{
+    width:100%;
+    background:transparent;
+    border-radius:12px;
+    padding:10px;
+    box-sizing:border-box;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-start;
+    gap:18px;
+  }
+
+  /* контейнер для сцены с балеринами */
+  .dance-scene{
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    height:360px;
+    overflow:hidden;
+  }
+
+  /* svg масштабируется адаптивно */
+  svg.scene { width:100%; height:100%; max-height:420px; }
+
+  /* группа балерин — будем анимировать transform и opacity */
+  .dancers { transform-origin:50% 50%; transition:opacity var(--fade-duration) ease, transform var(--fade-duration) ease; }
+
+  /* отдельный танец каждой балерины (синхронно, но с небольшими сдвигами) */
+  .dancer{
+    transform-origin:50% 65%;
+    animation: sway var(--dance-duration) ease-in-out infinite;
+  }
+  .dancer.d1{ animation-delay:0ms; }
+  .dancer.d2{ animation-delay:150ms; }
+  .dancer.d3{ animation-delay:300ms; }
+  .dancer.d4{ animation-delay:450ms; }
+
+  /* плавный взмах/сгиб — keyframes */
+  @keyframes sway {
+    0%   { transform: translateY(0px) rotate(0deg) scale(1); opacity:1 }
+    20%  { transform: translateY(-6px) rotate(-1.2deg) scale(1.002); }
+    40%  { transform: translateY(0px) rotate(0.6deg)  scale(1); }
+    60%  { transform: translateY(-6px) rotate(-1deg)   scale(1.002); }
+    80%  { transform: translateY(0px) rotate(0.4deg)   scale(1); }
+    100% { transform: translateY(0px) rotate(0deg)     scale(1); }
+  }
+
+  /* векторные элементы балерин — простая стилизация (контур + легкая штриховка) */
+  .ballet-path{ fill:none; stroke:var(--accent); stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; opacity:0.98 }
+  .tutu{ fill:none; stroke:var(--accent); stroke-width:1.2 }
+  .head{ fill:var(--accent) }
+
+  /* после окончания танца скроем и разместим текст */
+  .dancers.fade-away{ opacity:0; transform:scale(0.96) translateY(-8px); pointer-events:none }
+
+  /* контейнер для текста — центр и аккуратность */
+  .text-wrap{
+    width:100%;
+    max-width:820px;
+    min-height:180px;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    box-sizing:border-box;
+    padding:12px 6px;
+  }
+
+  /* блок текста — читабельный, регулируемый размер */
+  .narration{
+    width:100%;
+    color:var(--ink);
+    font-size: clamp(16px, 2.1vw, 20px); /* responsive font */
+    line-height:1.55;
+    letter-spacing:0.2px;
+    text-align:left;
+    max-width:780px;
+    word-break:break-word;
+    white-space:pre-wrap;
+  }
+
+  /* каждая "словечко" печатается с небольшим эффектом появления */
+  .word {
+    opacity:0;
+    display:inline-block;
+    transform:translateY(6px);
+    transition:opacity 220ms ease, transform 260ms cubic-bezier(.2,.8,.2,1);
+    margin-right:0.35ch;
+  }
+  .word.visible{
+    opacity:1;
+    transform:none;
+  }
+
+  /* подпись внизу */
+  .credit{ margin-top:8px;font-size:13px;color:#666; text-align:center;width:100% }
+
+  /* адаптация под печать — высокая контрастность */
+  @media print{
+    body{background:#fff}
+    .dance-scene{height:260px}
+    .narration{font-size:14px}
+  }
+
+  /* мелкие эстетические настройки для мелких экранов */
+  @media (max-width:420px){
+    .dance-scene{height:260px}
+    .narration{font-size:15px}
+  }
+</style>
+</head>
+<body>
+  <main class="stage" role="main" aria-live="polite">
+    <div class="card" id="card">
+      <!-- СЦЕНА: векторная простая иллюстрация 4 балерин -->
+      <div class="dance-scene" aria-hidden="true">
+        <svg class="scene" viewBox="0 0 1200 500" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="четыре балерины танцуют">
+          <!-- фон (легкий) -->
+          <rect x="0" y="0" width="1200" height="500" fill="transparent"/>
+          <!-- группа балерин -->
+          <g class="dancers" id="dancers" transform="translate(0,0)">
+            <!-- балерина 1 -->
+            <g class="dancer d1" transform="translate(200,180)">
+              <!-- ноги / тело -->
+              <path class="ballet-path" d="M-10 95 Q0 130 12 95 L28 20 Q34 2 20 0 Q6 -2 -6 14 Z" />
+              <!-- туловище -->
+              <path class="ballet-path" d="M-8 14 Q0 -10 20 0 Q28 6 24 28 Q18 50 12 58" />
+              <!-- туту -->
+              <path class="tutu" d="M-28 60 Q-4 46 0 50 Q14 46 40 60 Q12 78 -12 76 Q-36 74 -28 60 Z" />
+              <!-- голова -->
+              <circle class="head" cx="10" cy="-18" r="12" />
+              <!-- рука (контур) -->
+              <path class="ballet-path" d="M28 10 Q34 -2 44 -6" />
+            </g>
+
+            <!-- балерина 2 -->
+            <g class="dancer d2" transform="translate(420,180)">
+              <path class="ballet-path" d="M-10 95 Q0 130 12 95 L28 20 Q34 2 20 0 Q6 -2 -6 14 Z" />
+              <path class="ballet-path" d="M-8 14 Q0 -10 20 0 Q28 6 24 28 Q18 50 12 58" />
+              <path class="tutu" d="M-28 60 Q-4 46 0 50 Q14 46 40 60 Q12 78 -12 76 Q-36 74 -28 60 Z" />
+              <circle class="head" cx="10" cy="-18" r="12" />
+              <path class="ballet-path" d="M28 10 Q22 -6 12 -10" />
+            </g>
+
+            <!-- балерина 3 -->
+            <g class="dancer d3" transform="translate(640,180)">
+              <path class="ballet-path" d="M-10 95 Q0 130 12 95 L28 20 Q34 2 20 0 Q6 -2 -6 14 Z" />
+              <path class="ballet-path" d="M-8 14 Q0 -10 20 0 Q28 6 24 28 Q18 50 12 58" />
+              <path class="tutu" d="M-28 60 Q-4 46 0 50 Q14 46 40 60 Q12 78 -12 76 Q-36 74 -28 60 Z" />
+              <circle class="head" cx="10" cy="-18" r="12" />
+              <path class="ballet-path" d="M-12 10 Q-20 -2 -30 -6" />
+            </g>
+
+            <!-- балерина 4 -->
+            <g class="dancer d4" transform="translate(860,180)">
+              <path class="ballet-path" d="M-10 95 Q0 130 12 95 L28 20 Q34 2 20 0 Q6 -2 -6 14 Z" />
+              <path class="ballet-path" d="M-8 14 Q0 -10 20 0 Q28 6 24 28 Q18 50 12 58" />
+              <path class="tutu" d="M-28 60 Q-4 46 0 50 Q14 46 40 60 Q12 78 -12 76 Q-36 74 -28 60 Z" />
+              <circle class="head" cx="10" cy="-18" r="12" />
+              <path class="ballet-path" d="M28 10 Q34 0 42 -8" />
+            </g>
+          </g>
+        </svg>
+      </div>
+
+      <!-- блок для текста, изначально пустой -->
+      <div class="text-wrap" id="textWrap" aria-live="polite">
+        <div class="narration" id="narration" tabindex="0"></div>
+      </div>
+
+      <div class="credit">— тихий подарок городу</div>
+    </div>
+  </main>
+
+<script>
+/*
+  Автономный сценарий:
+  1) при загрузке — проигрывается анимация балерин, заданная CSS (keyframes sway).
+  2) через --dance-duration (из CSS) мы запускаем уход (fade-away) группы .dancers
+  3) после небольшого сдвига запускаем функцию печати текста слово за словом
+  4) текст задан в переменной TEXT ниже — поменяй на любой другой
+*/
+
+/* ---------- настройки (легко менять) ---------- */
+/* Если хочешь сделать короче/длиннее танец, меняй css-переменную --dance-duration в <style> */
+const CSS_DANCE_DURATION = getComputedStyle(document.documentElement).getPropertyValue('--dance-duration').trim() || '7000ms';
+const FADE_DELAY_MS = 120; // небольшой offset между началом fade и печатью
+const TYPING_PAUSE = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--typing-delay')) || 1200;
+const WORD_INTERVAL = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--word-interval')) || 220;
+
+/* ---------- текст: заменяй на свой ---------- */
+const TEXT = `пришло время танцевать. маленький подарок для улиц и джут-улыбка прохожим.
+мы собираемся не на представление и не на экзамен — а на миниатюрную встречу с собой.
+без билетов, без дресс-кода, без ограничений —
+только дыхание и шаги, только сцена внутри. 
+
+в шутку о власти: говорят, власть танцует лучше всех — она всегда знает, когда начать аплодировать и кого поставить в центр, но мы-то знаем: настоящая грация не требует зрителей.
+(анекдот: спросили у чиновника, почему он не танцует — он ответил, что репетиции оплачены налогоплательщиками, а результат пока не подтверждён) 
+
+если захочется — запомни этот текст, замени в коде и сделай свой неожиданный жест доброты для города.`;
+
+/* ---------- вспомогательные функции ---------- */
+function msFromCssTime(cssTime){
+  // принимает строки типа "7000ms" или "7s"
+  cssTime = cssTime.trim();
+  if(cssTime.endsWith('ms')) return parseFloat(cssTime.slice(0,-2));
+  if(cssTime.endsWith('s')) return parseFloat(cssTime.slice(0,-1)) * 1000;
+  return parseFloat(cssTime) || 0;
+}
+
+/* главный orchestration */
+document.addEventListener('DOMContentLoaded', ()=> {
+  const dancers = document.getElementById('dancers');
+  const narration = document.getElementById('narration');
+
+  // вычисляем длительность танца из css
+  const danceMs = msFromCssTime(CSS_DANCE_DURATION);
+
+  // через danceMs убираем группу балерин (fade away) и запускаем печать
+  setTimeout(()=>{
+    // добавляем класс, который делает opacity:0 и немного scale
+    dancers.classList.add('fade-away');
+
+    // чуть позже вызываем печать — даём время на fade
+    setTimeout(startTyping, FADE_DELAY_MS + parseInt(getComputedStyle(document.documentElement).getPropertyValue('--fade-duration')) || 900);
+  }, danceMs);
+  
+  /* функция, которая печатает слово за словом */
+  function startTyping(){
+    // очищаем область
+    narration.innerHTML = '';
+    // разбиваем на слова, сохраняя знаки новой строки как специальные маркеры
+    // чтобы респектовать параграфы, мы разобьём по пробелам, но сохраним '\n\n' как маркеры абзацев
+    const paragraphs = TEXT.split(/\n{2,}/g); // двойной перевод — новый абзац
+    let paragraphIndex = 0;
+
+    function typeParagraph(){
+      if(paragraphIndex >= paragraphs.length) return; // всё напечатано
+      const para = paragraphs[paragraphIndex].trim();
+      if(!para){
+        // пустой абзац — добавим перенос
+        narration.appendChild(document.createElement('br'));
+        paragraphIndex++;
+        setTimeout(typeParagraph, WORD_INTERVAL);
+        return;
+      }
+
+      const words = para.split(/\s+/);
+      let i = 0;
+      function emitWord(){
+        if(i >= words.length){
+          // после слова-для-параграфа ставим перенос строки и небольшой тайм-аут
+          narration.appendChild(document.createElement('br'));
+          narration.appendChild(document.createElement('br'));
+          paragraphIndex++;
+          setTimeout(typeParagraph, WORD_INTERVAL * 2 + 120);
+          return;
+        }
+        const w = document.createElement('span');
+        w.className = 'word';
+        w.textContent = words[i];
+        narration.appendChild(w);
+        // маленькая задержка перед показом, чтобы была плавность
+        requestAnimationFrame(()=>{
+          setTimeout(()=>{ w.classList.add('visible') }, 10);
+        });
+        i++;
+        setTimeout(emitWord, WORD_INTERVAL);
+      }
+      emitWord();
+    }
+
+    // пауза перед стартом печати (чтобы не было резкого момента)
+    setTimeout(typeParagraph, TYPING_PAUSE);
+  }
+});
+</script>
+</body>
+</html>
